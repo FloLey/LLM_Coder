@@ -8,10 +8,7 @@ from states.handle_step import handle_step
 from states.generate_plan import generate_plan
 from states.validate_plan import validate_plan, decide_to_recreate_plan
 
-os.environ['OPENAI_API_KEY'] = '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'
 os.environ['LANGCHAIN_TRACING_V2'] = 'true'
-os.environ['LANGCHAIN_API_KEY'] = 'ls__4e3d63be66fe4e079da69314e83aa67d'
-
 
 class GraphState(TypedDict):
     """
