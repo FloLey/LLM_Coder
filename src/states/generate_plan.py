@@ -35,28 +35,6 @@ def generate_plan(state):
     # Parser
     parser_tool = PydanticToolsParser(tools=[Plan])
 
-    ## Prompt
-    template = """"As a python software architect, you will receive specifications or requirements for a software project. 
-    Your primary task is to decompose the overall problem into manageable, executable steps or sub-problems. 
-    Each step should be designed in such a way that, upon completion, the software is in a functional state, 
-    even if it does not yet include all the planned features or capabilities. Each step should add or change code.
-
-    Please follow these guidelines when breaking down the software project:
-    1. Identify Key Components: Determine the core components or modules that make up the software system. 
-        These components should reflect major functional areas of the software.
-    2. Sequential Steps: Organize the development process into sequential steps. 
-        Each step should focus on implementing a specific component or enhancing the software's functionality progressively.
-    3. Ensure Functionality at Each Stage: Design each step so that the software remains operational and can perform a 
-        subset of its intended functions after the step is completed.
-
-    Here is the description of the software project you will be working on: 
-    {software_description}
-
-    Please proceed by breaking down the project into a list of detailed steps, 
-    keeping in mind the goal of maintaining software functionality throughout the development process.
-    Don't mention testing as it is not your responsibility. Also find a suitable name for the project.
-    """
-
     ## Generation
     if "plan_feedback" in state_dict:
         print("---RE-GENERATE PLAN w/ FEEDBACK---")
@@ -110,6 +88,28 @@ Don't mention testing and documentation as it is not your responsibility. Also f
 
     else:
         print("---GENERATE PLAN---")
+
+        ## Prompt
+        template = """"As a python software architect, you will receive specifications or requirements for a software project. 
+        Your primary task is to decompose the overall problem into manageable, executable steps or sub-problems. 
+        Each step should be designed in such a way that, upon completion, the software is in a functional state, 
+        even if it does not yet include all the planned features or capabilities. Each step should add or change code.
+
+        Please follow these guidelines when breaking down the software project:
+        1. Identify Key Components: Determine the core components or modules that make up the software system. 
+            These components should reflect major functional areas of the software.
+        2. Sequential Steps: Organize the development process into sequential steps. 
+            Each step should focus on implementing a specific component or enhancing the software's functionality progressively.
+        3. Ensure Functionality at Each Stage: Design each step so that the software remains operational and can perform a 
+            subset of its intended functions after the step is completed.
+
+        Here is the description of the software project you will be working on: 
+        {software_description}
+
+        Please proceed by breaking down the project into a list of detailed steps, 
+        keeping in mind the goal of maintaining software functionality throughout the development process.
+        Don't mention testing as it is not your responsibility. Also find a suitable name for the project.
+        """
 
         # Prompt
         prompt = PromptTemplate(

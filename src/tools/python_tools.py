@@ -1,29 +1,36 @@
-import os
-
 from langchain_core.pydantic_v1 import BaseModel, Field
 import subprocess
 
 from langchain_core.tools import ToolException, StructuredTool
 
 
-class VirtualEnvInput(BaseModel):
-    path: str = Field(description="The path where the virtual environment should be created.")
+class TestDirectoryInput(BaseModel):
+    test_dir: str = Field(description="The directory containing tests to run with pytest")
+    venv_python_path: str = Field(description="The path to the Python executable inside the venv")
 
 
-def create_virtual_env(path: str) -> str:
-    """Creates a virtual environment at the specified path and returns the path to the python executable"""
+def run_pytest_in_directory(test_dir: str, venv_python_path: str) -> str:
+    """Runs pytest on all tests in the specified directory within a specified venv, returning detailed output."""
+    python_executable = venv_python_path
+    pytest_command = [python_executable, "-m", "pytest", test_dir]
+
     try:
-        subprocess.run([f"python", "-m", "venv", path], check=True)
-        python_path = os.path.join(path, "bin", "python")
-        return f"Created virtual environment with python executable path at {python_path}"
+        result = subprocess.run(pytest_command, capture_output=True, text=True, check=True)
+        output = result.stdout + "\n" + result.stderr
+        return f"Tests executed successfully:\n{output}"
+    except subprocess.CalledProcessError as e:
+        # This captures errors from the subprocess itself and includes full output (stdout + stderr)
+        full_output = e.stdout + "\n" + e.stderr
+        raise ToolException(f"Failed to run tests with detailed output:\n{pytest_command}\n{full_output}\n")
     except Exception as e:
-        raise ToolException(f"Failed to create virtual environment: {str(e)}")
+        # This captures any other exceptions, e.g., if the subprocess call fails to execute
+        raise ToolException(f"Failed to run tests: \n{pytest_command}\n{str(e)}")
 
 
-create_virtual_env_tool = StructuredTool.from_function(
-    func=create_virtual_env,
-    name="CreateVirtualEnv",
-    description="Creates a virtual environment at the specified path and returns the path to the python executable",
-    args_schema=VirtualEnvInput,
+run_pytest_tool = StructuredTool.from_function(
+    func=run_pytest_in_directory,
+    name="RunPytest",
+    description="Runs pytest on all tests in the specified directory within a specified venv.",
+    args_schema=TestDirectoryInput,
     handle_tool_error=True
 )

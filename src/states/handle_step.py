@@ -24,7 +24,8 @@ class Result(BaseModel):
     """
     Return the result to the user request as a pydantic object
     """
-    changed_files: list[File] = Field(description="a list of all files that where created or changed")
+    changed_source_files: list[File] = Field(description="a list of all source files that where created or changed")
+    changed_test_files: list[File] = Field(description="a list of all test files that where created or changed")
     entry_point: str = Field(description="The python file to run to start the software.")
     requirements: set[str] = Field(description="The requirements that need to be installed to run the project")
 
@@ -84,6 +85,7 @@ def handle_step(state):
 
     ## State
     state_dict = state["keys"]
+
     iterations = state_dict["iterations"]
     software_description = state_dict["software_description"]
     steps_done = state_dict["steps_done"]
@@ -93,21 +95,45 @@ def handle_step(state):
     current_step = steps_todo[0]
 
     ## Prompt
-    user_input = f"""
-    I would like you to implement a given task. The final goal is to create:
-    "{software_description}".
+    if "test_feedback" in state_dict:
+        feedback = state_dict["test_feedback"]
+        user_input = f"""
+            I would like you rework a given task. The final goal is to create:
+            "{software_description}".
+    
+            In order to achieve this, this are the steps that have already been implemented:
+            {steps_done}
+            You only need to focus on the next step (this is your task):
+            {current_step}
+            here is some feedback that was created when running test:
+            {feedback}
+    
+            Analyze what needs to be done, and add changes to the code where needed using the feedback
+            Create files and folders if needed to keep the code organized. Aim to keep files small.
+            All the code should be put in the source folder located at: {source} at started by running a single
+            entry point python file.
+            You can also add or rework the tests (using pytest) in the {test} folder.
+            Return the result as a pydantic object
+            """
 
-    In order to achieve this, this are the steps that have already been implemented:
-    {steps_done}
-    You only need to focus on the next step (this is your task):
-    {current_step}
 
-    Analyze what needs to be done, and add changes to the code where needed.
-    Create files and folders if needed to keep the code organized. Aim to keep files small.
-    All the code should be put in the source folder located at: {source} at started by running a single
-    entry point python file.
-    Also add tests (using pytest) for the new feature in the {test} folder.
-    """
+    else:
+        user_input = f"""
+        I would like you to implement a given task. The final goal is to create:
+        "{software_description}".
+    
+        In order to achieve this, this are the steps that have already been implemented:
+        {steps_done}
+        You only need to focus on the next step (this is your task):
+        {current_step}
+    
+        Analyze what needs to be done, and add changes to the code where needed.
+        Create files and folders if needed to keep the code organized. Aim to keep files small.
+        All the code should be put in the source folder located at: {source} at started by running a single
+        entry point python file.
+        Also add tests (using pytest) for the new feature in the {test} folder.
+        Return the result as a pydantic object
+        """
     prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -144,8 +170,10 @@ def handle_step(state):
 
     iterations = iterations + 1
     state_dict["iterations"] = iterations
-    updated_files = replace_or_add_files(state_dict["source_files"], result["changed_files"])
-    state_dict["source_files"] = updated_files
+    updated_source_files = replace_or_add_files(state_dict["source_files"], result["changed_source_files"])
+    state_dict["source_files"] = updated_source_files
+    updated_test_files = replace_or_add_files(state_dict["test_files"], result["changed_test_files"])
+    state_dict["test_files"] = updated_test_files
     state_dict["entry_point"] = result["entry_point"]
     state_dict["requirements"] = state_dict["requirements"] | set(result["requirements"])
     state_dict["current_step"] = current_step

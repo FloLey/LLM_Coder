@@ -3,6 +3,7 @@ import os
 from langgraph.graph import END, StateGraph
 from typing import Dict, TypedDict
 
+from states.test_step import test_step, decide_rework_code
 from states.create_project import create_project
 from states.handle_step import handle_step
 from states.generate_plan import generate_plan
@@ -56,6 +57,7 @@ async def coder_agent_model(input_str, history):
     workflow.add_node("handle_step", handle_step)  # handle a step in the plan
     workflow.add_node("test_step", test_step)  # test the code
 
+
     workflow.add_edge("generate_plan", "validate_plan")
     workflow.add_conditional_edges(
         "validate_plan",
@@ -67,7 +69,14 @@ async def coder_agent_model(input_str, history):
     )
     workflow.add_edge("create_project", "handle_step")
     workflow.add_edge("handle_step", "test_step")
-    workflow.add_edge("test_step", END)
+    workflow.add_conditional_edges(
+        "test_step",
+        decide_rework_code,
+        {
+            "handle_step": "handle_step",
+            "finish": END,
+        },
+    )
 
     workflow.set_entry_point("generate_plan")
 
@@ -110,9 +119,21 @@ async def coder_agent_model(input_str, history):
             output_lines.extend(["___Handel step:___"])
             output_lines.extend([chunk['handle_step']['keys']['current_step']])
             output_lines.extend(["start program with script: " + chunk['handle_step']['keys']['entry_point']])
-            output_lines.extend(["current files:"])
+            output_lines.extend(["---Current source files:"])
             for file in chunk['handle_step']['keys']['source_files']:
                 output_lines.extend([file['path'] + ": " + file['description']])
+            output_lines.extend(["---Current test files:"])
+            for file in chunk['handle_step']['keys']['test_files']:
+                output_lines.extend([file['path'] + ": " + file['description']])
             output_lines.extend(["current requirements: " + str(chunk['handle_step']['keys']['requirements'])])
+
+        if 'test_step' in chunk:
+            output_lines.extend(["___test step:___"])
+            output_lines.extend([chunk['test_step']['keys']['current_step']])
+            value = "OK" if chunk['test_step']['keys']['test_result'] else "not OK"
+            output_lines.extend([f"Test result: {value}"])
+            if chunk['test_step']['keys']['test_feedback']:
+                output_lines.extend(["Feedback:"])
+                output_lines.extend([chunk['test_step']['keys']['test_feedback']])
 
         yield '\n'.join(output_lines)
