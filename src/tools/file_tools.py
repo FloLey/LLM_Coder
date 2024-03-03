@@ -1,5 +1,6 @@
 import os
 import shutil
+from typing import Optional
 
 from langchain_core.tools import StructuredTool, ToolException
 from pydantic.v1 import BaseModel, Field
@@ -10,7 +11,7 @@ class FilePathInput(BaseModel):
 
 
 class FileCreationInput(FilePathInput):
-    content: str = Field(default="", description="The content to write into the file.")
+    content: Optional[str] = Field(default="", description="The content to write into the file. optional")
 
 class DirectoryPathInput(BaseModel):
     path: str = Field(description="The path of the directory to create.")
@@ -18,7 +19,7 @@ class DirectoryPathInput(BaseModel):
 
 def create_directory(path: str) -> str:
     """
-    Creates a directory at the specified path and return the path to the folder.
+    Creates a directory at the specified path. Cannot create files
     """
     try:
         if os.path.exists(path):
@@ -33,7 +34,7 @@ def create_directory(path: str) -> str:
 create_directory_tool = StructuredTool.from_function(
     func=create_directory,
     name="CreateDirectory",
-    description="Creates a directory at the specified path and return the path to the folder",
+    description="Creates a directory at the specified path. Cannot create files",
     args_schema=DirectoryPathInput,
     handle_tool_error=True
 )
@@ -52,15 +53,10 @@ def create_file_with_content(path: str, content: str = "") -> str:
 create_file_tool = StructuredTool.from_function(
     func=create_file_with_content,
     name="CreateFile",
-    description="Creates a file at the specified path and writes the provided content to it.",
+    description="Creates a file at the specified path and writes the provided content to it if any.",
     args_schema=FileCreationInput,
     handle_tool_error=True
 )
-
-
-def replace_file_content():
-    return None
-
 
 def read_file_content(path: str) -> str:
     """Reads and returns the content of the file at the specified path."""
