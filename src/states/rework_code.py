@@ -8,22 +8,17 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 from llm import LLM
 
-from tools.file_tools import create_directory_tool
-from tools.venv_tools import create_virtual_env_tool
-from tools.file_tools import create_file_tool
+from tools.file_tools import create_directory_tool, create_file_tool, update_file_content_tool, read_file_content_tool
 
-WORKDIR = "/home/florent/Desktop/test_code_generator"
+from helpers import read_files_in_directory_as_string
 
 
-
-class Project(BaseModel):
+class Result(BaseModel):
     """
     Return the result to the user request as a pydantic object
     """
-    project_folder: str = Field(description="The path to the project folder")
-    source_folder: str = Field(description="The path to the source folder")
-    test_folder: str = Field(description="The path to the test folder")
-    python_path: str = Field(description="The path to python executable")
+    description: str = Field(description="A detailed explanation of what was changed")
+    requirements: list[str] = Field(description="A list of requirements that need to be installed to run the code")
 
 
 def parse(output):
@@ -37,7 +32,7 @@ def parse(output):
     inputs = json.loads(function_call["arguments"])
 
     # If the Project function was invoked, return to the user with the function inputs
-    if name == "Project":
+    if name == "Result":
         return AgentFinish(return_values=inputs, log=str(function_call))
     # Otherwise, return an agent action
     else:
@@ -46,9 +41,9 @@ def parse(output):
         )
 
 
-def create_project(state):
+def rework_code(state):
     """
-    create a folder for the project and a virtual environment in the folder for the project.
+    creates an agent that will handle a single step of the project plan.
     Args:
         state (dict): The state dict
 
@@ -56,26 +51,40 @@ def create_project(state):
         state (dict): New key added to state
     """
 
-    print("---CREATE PROJECT AND VENV---")
-
     ## State
     state_dict = state["keys"]
+
     iterations = state_dict["iterations"]
-    project_name = state_dict["project_name"]
+    source = state_dict["source_folder"]
+    test = state_dict["test_folder"]
+    step_description = ["current_step_description"]
 
-    ## Prompt
+    src_files = read_files_in_directory_as_string(source)
+    test_files = read_files_in_directory_as_string(test)
+
+    feedback = state_dict["test_feedback"]
+
     user_input = f"""
-    This is the name of the project: {project_name}. The folder name should be curated.
-    This is the location where you should create a folder for the project: {WORKDIR}
+I would like you fix/rework existing code.
 
-    1. Create a single folder for the project using the project name
-    2. Create an empty "conftest.py" file at the root of the project
-    3. Create a single new virtual environment in a venv folder in the project folder
-    4. Create a single "src" folder in the project folder
-    5. Create a single "tests" folder in the project folder
-    6. Return the result as a pydantic object
-    
-        """
+Here is a description of the changes that where made. Before the changes the test where passing:
+{step_description}
+
+here are the current source files:
+{src_files}
+
+here are the test files:
+{test_files}
+
+here is the output that was created when running test:
+{feedback}
+
+Analyze what needs to be done, and change to the code where needed.
+Make sure the code is documented with docstrings.
+keep track of the requirements that need to be installed to run the code.
+Return the result as a pydantic object
+"""
+
     prompt = ChatPromptTemplate.from_messages(
         [
             (
@@ -89,7 +98,7 @@ def create_project(state):
     )
 
     # Tools
-    tools = [create_virtual_env_tool, create_directory_tool, create_file_tool, Project]
+    tools = [update_file_content_tool, Result]
     llm_with_tools = LLM.bind_functions(tools)
     agent = (
             {
@@ -105,19 +114,14 @@ def create_project(state):
     )
     agent_executor = AgentExecutor(
         agent=agent,
-        tools=[create_virtual_env_tool, create_directory_tool, create_file_tool],
+        tools=[update_file_content_tool],
         verbose=True
     )
-
     result = agent_executor.invoke({"input": ""}, return_only_outputs=True)
-
     iterations = iterations + 1
     state_dict["iterations"] = iterations
-    state_dict["project_folder"] = result["project_folder"]
-    state_dict["source_folder"] = result["source_folder"]
-    state_dict["test_folder"] = result["test_folder"]
-    state_dict["python_path"] = result["python_path"]
-    state_dict["requirements"] = set()
+    state_dict["requirements"] = set(result["requirements"])
+    state_dict["current_rework_description"] = result["description"]
 
     return {
         "keys": state_dict

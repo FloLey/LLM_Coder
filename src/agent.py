@@ -3,6 +3,7 @@ import os
 from langgraph.graph import END, StateGraph
 from typing import Dict, TypedDict
 
+from states.rework_code import rework_code
 from states.test_step import test_step, decide_rework_code
 from states.create_project import create_project
 from states.handle_step import handle_step
@@ -56,6 +57,7 @@ async def coder_agent_model(input_str, history):
     workflow.add_node("create_project", create_project)  # create the project folder and venv
     workflow.add_node("handle_step", handle_step)  # handle a step in the plan
     workflow.add_node("test_step", test_step)  # test the code
+    workflow.add_node("rework_code", rework_code)  # test the code
 
 
     workflow.add_edge("generate_plan", "validate_plan")
@@ -73,10 +75,11 @@ async def coder_agent_model(input_str, history):
         "test_step",
         decide_rework_code,
         {
-            "handle_step": "handle_step",
+            "rework_code": "rework_code",
             "finish": END,
         },
     )
+    workflow.add_edge("rework_code", "test_step")
 
     workflow.set_entry_point("generate_plan")
 
@@ -118,22 +121,24 @@ async def coder_agent_model(input_str, history):
         if 'handle_step' in chunk:
             output_lines.extend(["___Handel step:___"])
             output_lines.extend([chunk['handle_step']['keys']['current_step']])
-            output_lines.extend(["start program with script: " + chunk['handle_step']['keys']['entry_point']])
-            output_lines.extend(["---Current source files:"])
-            for file in chunk['handle_step']['keys']['source_files']:
-                output_lines.extend([file['path'] + ": " + file['description']])
-            output_lines.extend(["---Current test files:"])
-            for file in chunk['handle_step']['keys']['test_files']:
-                output_lines.extend([file['path'] + ": " + file['description']])
+            output_lines.extend(["Step description: "])
+            output_lines.extend([str(chunk['handle_step']['keys']['current_step_description'])])
             output_lines.extend(["current requirements: " + str(chunk['handle_step']['keys']['requirements'])])
 
         if 'test_step' in chunk:
-            output_lines.extend(["___test step:___"])
+            output_lines.extend(["___Test step:___"])
             output_lines.extend([chunk['test_step']['keys']['current_step']])
             value = "OK" if chunk['test_step']['keys']['test_result'] else "not OK"
             output_lines.extend([f"Test result: {value}"])
             if chunk['test_step']['keys']['test_feedback']:
                 output_lines.extend(["Feedback:"])
                 output_lines.extend([chunk['test_step']['keys']['test_feedback']])
+
+        if 'rework_code' in chunk:
+            output_lines.extend(["___Rework code step:___"])
+            output_lines.extend([chunk['rework_code']['keys']['current_step']])
+            output_lines.extend(["Step description: "])
+            output_lines.extend([str(chunk['rework_code']['keys']['current_rework_description'])])
+            output_lines.extend(["current requirements: " + str(chunk['rework_code']['keys']['requirements'])])
 
         yield '\n'.join(output_lines)
