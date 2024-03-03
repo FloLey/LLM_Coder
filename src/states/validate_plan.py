@@ -53,7 +53,7 @@ Development steps:
 {plan_steps}
 
 Based on the above information, proceed with the validation of the development plan. 
-Don't be to strict, only reject a plan if it is something is wrong.
+Don't be to strict, only reject a plan if something is wrong.
     """
 
     print("---VALIDATE PLAN---")

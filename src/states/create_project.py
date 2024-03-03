@@ -80,7 +80,7 @@ def create_project(state):
         [
             (
                 "system",
-                """You are senior python developer. Use the provided tools to accomplish the task given by th user.
+                """You are senior python developer. Use the provided tools to accomplish the task given by the user.
                 """,
             ),
             MessagesPlaceholder(variable_name="agent_scratchpad"),

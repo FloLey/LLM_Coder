@@ -45,7 +45,7 @@ def create_file_with_content(path: str, content: str = "") -> str:
     try:
         with open(path, 'w') as file:
             file.write(content)
-        return f"File created with content at: {path}"
+        return f"File created with content {content} at: {path}"
     except Exception as e:
         raise ToolException(f"Failed to create file with content: {str(e)}")
 

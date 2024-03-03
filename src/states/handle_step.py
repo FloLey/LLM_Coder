@@ -83,9 +83,9 @@ def handle_step(state):
     Analyze what needs to be done, and add changes to the code where needed.
     Always make minimal changes and make sure the code is documented with docstrings.
     Create files and folders if needed to keep the code organized. Aim to keep files small.
-    All the code should be put in the source folder located at: {source} and started by running a single
+    All the code should be put in the existing source folder located at: {source} and started by running a single
     entry point python file.
-    Also add tests (using pytest) for the new feature in the {test} folder. 
+    Also add tests (using pytest) for the new feature in the existing {test} folder. 
     When importing packages, keep in mind that the src and test folder are at the same level.
     keep track of the requirements that need to be installed to run the code.
     Return the result as a pydantic object
@@ -94,7 +94,7 @@ def handle_step(state):
         [
             (
                 "system",
-                """You are senior python developer. Use the provided tools to accomplish the task given by th user.
+                """You are senior python developer. Use the provided tools to accomplish the task given by the user.
                 """,
             ),
             MessagesPlaceholder(variable_name="agent_scratchpad"),

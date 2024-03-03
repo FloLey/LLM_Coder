@@ -8,17 +8,17 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 from llm import LLM
 
-from tools.file_tools import create_directory_tool, create_file_tool, update_file_content_tool, read_file_content_tool
+from tools.file_tools import update_file_content_tool
 
 from helpers import read_files_in_directory_as_string
 
 
 class Result(BaseModel):
     """
-    Return the result to the user request as a pydantic object
+    Respond to the user request as a pydantic object
     """
-    description: str = Field(description="A detailed explanation of what was changed")
-    requirements: list[str] = Field(description="A list of requirements that need to be installed to run the code")
+    description: str = Field(description="A detailed explanation of the changed that where made.")
+    requirements: list[str] = Field(description="The list of requirements that need to be installed to run the code")
 
 
 def parse(output):
@@ -43,53 +43,55 @@ def parse(output):
 
 def rework_code(state):
     """
-    creates an agent that will handle a single step of the project plan.
+    creates an agent that will rework some code.
     Args:
         state (dict): The state dict
 
     Returns:
         state (dict): New key added to state
     """
-
+    import pudb;pu.db
     ## State
     state_dict = state["keys"]
 
     iterations = state_dict["iterations"]
     source = state_dict["source_folder"]
     test = state_dict["test_folder"]
-    step_description = ["current_step_description"]
 
     src_files = read_files_in_directory_as_string(source)
     test_files = read_files_in_directory_as_string(test)
+    print(src_files)
+    print(test_files)
 
     feedback = state_dict["test_feedback"]
 
     user_input = f"""
-I would like you fix/rework existing code.
+I would like you fix/rework some code and explain the changes you made. Also keep track of the 
+requirements that need to be installed to run the code.
 
-Here is a description of the changes that where made. Before the changes the test where passing:
-{step_description}
-
-here are the current source files:
+Here are the current source files:
 {src_files}
 
-here are the test files:
+Here are the test files:
 {test_files}
 
-here is the output that was created when running test:
+here is the output that was created when running the code through test before you made changes:
 {feedback}
 
-Analyze what needs to be done, and change to the code where needed.
-Make sure the code is documented with docstrings.
-keep track of the requirements that need to be installed to run the code.
-Return the result as a pydantic object
+Make sure the code is documented with docstrings. Only make minimal changes and never change the same
+file more than once. Do not refactor code, just make fixes.
+When importing packages, keep in mind that the src and test folder are at the same level.
+respond with a pydantic object as quick as possible. 
 """
 
     prompt = ChatPromptTemplate.from_messages(
         [
             (
                 "system",
-                """You are senior python developer. Use the provided tools to accomplish the task given by th user.
+                """You are senior python developer. Use the provided tools to accomplish the task given by the user.
+                Make sure the code is documented with docstrings. Only make minimal changes and never change the same
+                file more than once. Do not refactor code, just make fixes.
+                respond with a pydantic object as quick as possible.
                 """,
             ),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
@@ -118,6 +120,7 @@ Return the result as a pydantic object
         verbose=True
     )
     result = agent_executor.invoke({"input": ""}, return_only_outputs=True)
+    import pudb;pu.db
     iterations = iterations + 1
     state_dict["iterations"] = iterations
     state_dict["requirements"] = set(result["requirements"])
