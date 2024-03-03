@@ -51,6 +51,23 @@ def replace_or_add_files(existing_files: list[dict], new_files: list[dict]) -> l
 
     return updated_files
 
+def replace_curly_braces_with_double(input_string):
+    # Replace all occurrences of '{' with '{{'
+    modified_string = input_string.replace("{", "{{")
+    # Replace all occurrences of '}' with '}}'
+    modified_string = modified_string.replace("}", "}}")
+    return modified_string
+def get_source_test_files(state_dict):
+    source_files = state_dict['source_files']
+    test_files = state_dict['test_files']
+    src_output = []
+    test_output = []
+    for file in source_files:
+        src_output.extend([file['path'] + ": \n" + file['description']])
+    for file in test_files:
+        test_output.extend([file['path'] + ": \n" + file['description']])
+
+    return '\n'.join(src_output), '\n'.join(test_output)
 
 def parse(output):
     # If no function was invoked, return to user
@@ -81,7 +98,6 @@ def handle_step(state):
     Returns:
         state (dict): New key added to state
     """
-    print("---HANDLE STEP---")
 
     ## State
     state_dict = state["keys"]
@@ -94,8 +110,11 @@ def handle_step(state):
     test = state_dict["test_folder"]
     current_step = steps_todo[0]
 
+    src_files, test_files = get_source_test_files(state_dict)
+
     ## Prompt
     if "test_feedback" in state_dict:
+        print("---HANDLE STEP: REWORK---")
         feedback = state_dict["test_feedback"]
         user_input = f"""
             I would like you rework a given task. The final goal is to create:
@@ -107,17 +126,26 @@ def handle_step(state):
             {current_step}
             here is some feedback that was created when running test:
             {feedback}
-    
-            Analyze what needs to be done, and add changes to the code where needed using the feedback
+            
+            here are the current source files with a description of their content:
+            {replace_curly_braces_with_double(src_files)}
+            
+            here are the test files with a description of their content:
+            {replace_curly_braces_with_double(test_files)}
+        
+            Analyze what needs to be done, and add changes to the code where needed.
+            Make sure a standard python project architecture is used (with __init__.py files). 
+            Get relevant existing source code and tests before you start writing new code. always make minimal changes.
             Create files and folders if needed to keep the code organized. Aim to keep files small.
-            All the code should be put in the source folder located at: {source} at started by running a single
+            All the code should be put in the source folder located at: {source} and started by running a single
             entry point python file.
-            You can also add or rework the tests (using pytest) in the {test} folder.
+            Also add tests (using pytest) for the new feature in the {test} folder.
             Return the result as a pydantic object
             """
 
 
     else:
+        print("---HANDLE STEP---")
         user_input = f"""
         I would like you to implement a given task. The final goal is to create:
         "{software_description}".
@@ -126,10 +154,18 @@ def handle_step(state):
         {steps_done}
         You only need to focus on the next step (this is your task):
         {current_step}
+        
+        here are the current source files with a description of their content:
+        {src_files}
+        
+        here are the test files with a description of their content:
+        {test_files}
     
         Analyze what needs to be done, and add changes to the code where needed.
+        Make sure a standard python project architecture is used (with __init__.py files).
+        Get relevant existing source code and tests before you start writing new code. always make minimal changes.
         Create files and folders if needed to keep the code organized. Aim to keep files small.
-        All the code should be put in the source folder located at: {source} at started by running a single
+        All the code should be put in the source folder located at: {source} and started by running a single
         entry point python file.
         Also add tests (using pytest) for the new feature in the {test} folder.
         Return the result as a pydantic object
@@ -167,7 +203,7 @@ def handle_step(state):
         verbose=True
     )
     result = agent_executor.invoke({"input": ""}, return_only_outputs=True)
-
+    import pudb;pu.db
     iterations = iterations + 1
     state_dict["iterations"] = iterations
     updated_source_files = replace_or_add_files(state_dict["source_files"], result["changed_source_files"])
@@ -175,7 +211,7 @@ def handle_step(state):
     updated_test_files = replace_or_add_files(state_dict["test_files"], result["changed_test_files"])
     state_dict["test_files"] = updated_test_files
     state_dict["entry_point"] = result["entry_point"]
-    state_dict["requirements"] = state_dict["requirements"] | set(result["requirements"])
+    state_dict["requirements"] = set(result["requirements"])
     state_dict["current_step"] = current_step
 
     return {

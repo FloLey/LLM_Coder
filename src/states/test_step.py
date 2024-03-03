@@ -18,7 +18,8 @@ class Result(BaseModel):
     """
     Return the result to the user request as a pydantic object
     """
-    feedback: Optional[str] = Field(description="Feedback if the test failed to run")
+    feedback: Optional[str] = Field(description="Feedback if the test failed to run. Also contains the output of the "
+                                                "test run")
     result: bool = Field(description="True if the tests succeeded, False otherwise")
 
 
@@ -106,7 +107,11 @@ def test_step(state):
     iterations = iterations + 1
     state_dict["iterations"] = iterations
     state_dict["test_result"] = result["result"]
-    state_dict["test_feedback"] = result["feedback"]
+    state_dict["test_feedback"] = result["feedback"] if "feedback" in result else ""
+
+    return {
+        "keys": state_dict
+    }
 
 
 def decide_rework_code(state):
@@ -129,4 +134,4 @@ def decide_rework_code(state):
     else:
         # We have relevant documents, so generate answer
         print("---TEST FAILED: NEED TO REWORK CODE")
-        return "generate_plan"
+        return "handle_step"
