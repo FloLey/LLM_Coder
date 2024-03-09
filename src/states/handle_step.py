@@ -20,6 +20,7 @@ class Result(BaseModel):
     description: str = Field(description="A detailed explanation of what was implemented.")
     requirements: list[str] = Field(description="A list of requirements that need to be installed to run the code")
 
+
 def parse(output):
     # If no function was invoked, return to user
     if "function_call" not in output.additional_kwargs:
@@ -66,10 +67,10 @@ def handle_step(state):
 
     print("---HANDLE STEP---")
     user_input = f"""
-    I would like you to implement a given task. The final goal is to create:
+    Implement the given task. The final goal is to create:
     "{software_description}".
 
-    In order to achieve this, this are the steps that have already been implemented:
+    In order to achieve this, here are the steps that have already been implemented:
     {steps_done}
     You only need to focus on the next step (this is your task):
     {current_step}
@@ -86,7 +87,6 @@ def handle_step(state):
     All the code should be put in the existing source folder located at: {source} and started by running a single
     entry point python file.
     Also add tests (using pytest) for the new feature in the existing {test} folder. 
-    When importing packages, keep in mind that the src and test folder are at the same level.
     keep track of the requirements that need to be installed to run the code.
     Return the result as a pydantic object
     """
@@ -97,8 +97,8 @@ def handle_step(state):
                 """You are senior python developer. Use the provided tools to accomplish the task given by the user.
                 """,
             ),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
             ("user", user_input),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
         ]
     )
 
@@ -123,6 +123,9 @@ def handle_step(state):
         verbose=True
     )
     result = agent_executor.invoke({"input": ""}, return_only_outputs=True)
+    print("===1====")
+    print(result)
+    print("=======")
     iterations = iterations + 1
     state_dict["iterations"] = iterations
     state_dict["requirements"] = set(result["requirements"])

@@ -69,7 +69,7 @@ def create_project(state):
     This is the location where you should create a folder for the project: {WORKDIR}
 
     1. Create a single folder for the project using the project name
-    2. Create an empty "conftest.py" file at the root of the project
+    2. Create a pytest.ini file at the root of the project with pythonpath = src.
     3. Create a single new virtual environment in a venv folder in the project folder
     4. Create a single "src" folder in the project folder
     5. Create a single "tests" folder in the project folder

@@ -50,7 +50,6 @@ def rework_code(state):
     Returns:
         state (dict): New key added to state
     """
-    import pudb;pu.db
     ## State
     state_dict = state["keys"]
 
@@ -60,27 +59,24 @@ def rework_code(state):
 
     src_files = read_files_in_directory_as_string(source)
     test_files = read_files_in_directory_as_string(test)
-    print(src_files)
-    print(test_files)
 
-    feedback = state_dict["test_feedback"]
+    feedback = state_dict["test_feedback"].replace('{', '{{').replace('}', '}}')
 
     user_input = f"""
 I would like you fix/rework some code and explain the changes you made. Also keep track of the 
 requirements that need to be installed to run the code.
 
-Here are the current source files:
+Here are the source files before modifications:
 {src_files}
 
-Here are the test files:
+Here are the test files before modification:
 {test_files}
 
-here is the output that was created when running the code through test before you made changes:
+here is the output that was created when running the code before modifications:
 {feedback}
 
-Make sure the code is documented with docstrings. Only make minimal changes and never change the same
+Make sure the code is documented with docstrings. Only make minimal changes and never modify the same
 file more than once. Do not refactor code, just make fixes.
-When importing packages, keep in mind that the src and test folder are at the same level.
 respond with a pydantic object as quick as possible. 
 """
 
@@ -89,13 +85,12 @@ respond with a pydantic object as quick as possible.
             (
                 "system",
                 """You are senior python developer. Use the provided tools to accomplish the task given by the user.
-                Make sure the code is documented with docstrings. Only make minimal changes and never change the same
-                file more than once. Do not refactor code, just make fixes.
-                respond with a pydantic object as quick as possible.
+                Do not refactor code, just make fixes. respond with a pydantic object after you made the required
+                changes.
                 """,
             ),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
             ("user", user_input),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
         ]
     )
 
@@ -120,7 +115,9 @@ respond with a pydantic object as quick as possible.
         verbose=True
     )
     result = agent_executor.invoke({"input": ""}, return_only_outputs=True)
-    import pudb;pu.db
+    print("===1====")
+    print(result)
+    print("=======")
     iterations = iterations + 1
     state_dict["iterations"] = iterations
     state_dict["requirements"] = set(result["requirements"])

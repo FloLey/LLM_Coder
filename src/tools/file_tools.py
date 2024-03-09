@@ -63,7 +63,7 @@ def read_file_content(path: str) -> str:
     try:
         with open(path, 'r') as file:
             content = file.read()
-        return content
+        return f"Content of {path}: {content}"
     except Exception as e:
         raise ToolException(f"Failed to read file content: {str(e)}")
 
@@ -84,7 +84,7 @@ def update_file_content(path: str, content: str) -> str:
     try:
         with open(path, 'w') as file:
             file.write(content)
-        return f"File content updated at: {path}"
+        return f"File content with: {path} updated to {content}"
     except Exception as e:
         raise ToolException(f"Failed to update file content: {str(e)}")
 
@@ -92,7 +92,7 @@ def update_file_content(path: str, content: str) -> str:
 update_file_content_tool = StructuredTool.from_function(
     func=update_file_content,
     name="UpdateFileContent",
-    description="Updates the content of the file at the specified path with new content.",
+    description="Updates the content of the file at the specified path with the provided content content.",
     args_schema=FileCreationInput,
     handle_tool_error=True
 )

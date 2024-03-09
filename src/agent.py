@@ -3,6 +3,7 @@ import os
 from langgraph.graph import END, StateGraph
 from typing import Dict, TypedDict
 
+from states.prepare_next import prepare_next_step, decide_finished
 from states.rework_code import rework_code
 from states.test_step import test_step, decide_rework_code
 from states.create_project import create_project
@@ -58,6 +59,7 @@ async def coder_agent_model(input_str, history):
     workflow.add_node("handle_step", handle_step)  # handle a step in the plan
     workflow.add_node("test_step", test_step)  # test the code
     workflow.add_node("rework_code", rework_code)  # test the code
+    workflow.add_node("prepare_next_step", prepare_next_step)  # prepare for next step
 
 
     workflow.add_edge("generate_plan", "validate_plan")
@@ -76,15 +78,25 @@ async def coder_agent_model(input_str, history):
         decide_rework_code,
         {
             "rework_code": "rework_code",
-            "finish": END,
+            "prepare_next_step": "prepare_next_step",
         },
     )
+
     workflow.add_edge("rework_code", "test_step")
+
+    workflow.add_conditional_edges(
+        "prepare_next_step",
+        decide_finished,
+        {
+            "handle_step": "handle_step",
+            "FINISH": END,
+        },
+    )
 
     workflow.set_entry_point("generate_plan")
 
     # Compile
-    config = {"recursion_limit": 20}
+    config = {"recursion_limit": 100}
     app = workflow.compile()
 
     # Construct the correct input structure
@@ -141,4 +153,14 @@ async def coder_agent_model(input_str, history):
             output_lines.extend([str(chunk['rework_code']['keys']['current_rework_description'])])
             output_lines.extend(["current requirements: " + str(chunk['rework_code']['keys']['requirements'])])
 
+        if 'prepare_next_step' in chunk:
+            if len(chunk['prepare_next_step']['keys']['steps_todo']):
+                output_lines.extend(["___Preparing next step:___"])
+                output_lines.extend(["To do: "])
+                output_lines.extend([str(chunk['prepare_next_step']['keys']['steps_todo'])])
+                output_lines.extend(["Done: "])
+                output_lines.extend([str(chunk['prepare_next_step']['keys']['steps_done'])])
+            else:
+                output_lines.extend(["___Done___"])
+                output_lines.extend(["The program should now be ready :)"])
         yield '\n'.join(output_lines)

@@ -130,7 +130,7 @@ def decide_rework_code(state):
     success = state_dict["test_result"]
     if success is True:
         print("---TEST PASSED: LET'S CONTINUE")
-        return "finish"
+        return "prepare_next_step"
     else:
         # We have relevant documents, so generate answer
         print("---TEST FAILED: NEED TO REWORK CODE")
